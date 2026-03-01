@@ -218,3 +218,52 @@ Explicitly justify final recommendation.
 - Provides a clinically meaningful endpoint
 - Maintains adequate event rate (~33%)
 - Preserves sufficient cohort size (n ≈ 301) for stable modeling
+
+
+### Why We Use TCGA TPM
+- TCGA log2(count + 1) values are **not library-size normalized**, so sequencing depth differences remain.
+- TPM is **library-size normalized**, reducing global shifts across patients.
+- Gene-length normalization in TPM does not negatively affect within-gene, cross-patient modeling.
+- TPM ensures a consistent total expression scale across samples.
+- After log transformation and train-only scaling, TPM provides a stable input for ML models.
+**What Would Be Fully Optimal (If Reprocessing From Raw Data)**
+- Start from raw gene-level counts.
+- Perform library-size normalization using size factors (e.g., DESeq2 or TMM).
+- Apply a variance-stabilizing transform (VST or log after normalization).
+- Split data by patient before any statistical filtering.
+- Fit gene filtering and scaling steps on the training set only.
+
+
+
+
+
+Pre-split (full dataset, label-agnostic)
+Structural integrity
+Genes x samples orientation
+One tumor sample per patient
+No duplicated barcodes
+Sample-level QC (technical only)
+Per-sample mean and median expression
+Per-sample SD
+Approximate detected genes (genes > 0)
+Percent zeros
+Remove clear technical failures using predefined thresholds
+Distribution sanity
+Overlay density plots of expression across samples
+Boxplots ordered by median
+Confirm no global compression or obvious broken samples
+
+
+
+
+
+Post-split (fit on train only)
+Gene filtering
+Low-prevalence filter (e.g., expressed in ≥ X% samples)
+Variance filter or top N variable genes
+Scaling
+Fit gene-wise scaler on train
+Apply to val/test
+PCA diagnostics
+Run PCA on train
+Project val/test without refitting
