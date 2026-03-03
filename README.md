@@ -267,3 +267,58 @@ Apply to val/test
 PCA diagnostics
 Run PCA on train
 Project val/test without refitting
+
+
+
+
+
+## Project Structure
+
+### 1. `01_data_prep.ipynb`
+
+**Purpose:** Structural cleaning + EDA + rule definition  
+
+**Contains:**
+- Raw data loading  
+- Sample alignment  
+- Structural QC  
+- Missingness analysis  
+- Distribution checks  
+- Cohort definition  
+- Explicit filtering rules (constants)
+
+**Ends with:**
+- Saved cleaned cohort manifest  
+- Saved rule definitions (e.g., JSON or Python constants)  
+- No train/test split yet  
+
+**This notebook answers:**  
+“Is the dataset coherent and what rules will we apply?”
+
+### 2. `02_split_and_features.py` (script, not notebook)
+
+**Purpose:** Deterministic preprocessing  
+
+- Load cleaned cohort  
+- Train/test split  
+- Fit imputation on train  
+- Fit scaling on train  
+- Fit gene filtering on train  
+- Apply to val/test  
+- Save feature matrices  
+
+No plotting. Pure pipeline.
+
+### 3. `03_modeling.py`
+
+- Baselines  
+- Cross-validation tuning  
+- Save trained models  
+
+### 4. `04_evaluation.ipynb`
+
+- ROC-AUC / Average Precision  
+- Calibration  
+- Kaplan–Meier curves  
+- SHAP  
+- Model comparison  
