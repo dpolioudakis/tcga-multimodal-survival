@@ -321,4 +321,28 @@ No plotting. Pure pipeline.
 - Calibration  
 - Kaplan–Meier curves  
 - SHAP  
-- Model comparison  
+- Model comparison
+
+
+### Directory structure
+- data/
+    - raw/
+        - Immutable source data
+    - interim/
+        - Dataset definition
+            - Cleaned, aligned, QC’d
+            - Cohort defined
+            - No train/test split yet
+    - processed/
+        - Experiment definition
+            - Split applied
+            - Scaling/imputation fit
+            - Model-ready matrices
+        - splits/
+            - train_ids.csv
+            - val_ids.csv
+            - test_ids.csv
+        - model_inputs/
+            - train/
+            - val/
+            - test/
