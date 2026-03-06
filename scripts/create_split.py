@@ -7,11 +7,16 @@ This module provides reusable utilities to:
 4) persist split IDs to disk.
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 from collections.abc import Sequence
+import argparse
+import hashlib
+import json
+import shlex
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
-import argparse
 
 
 def load_inputs(
@@ -116,6 +121,67 @@ def save_splits(
     pd.Series(test_ids, name=id_col).to_csv(outdir / "test_ids.csv", index=False)
 
 
+def write_split_metadata(
+    outdir: str | Path,
+    sample_ids_path: str | Path,
+    survival_path: str | Path,
+    train_ids: Sequence[str],
+    val_ids: Sequence[str],
+    test_ids: Sequence[str],
+    seed: int,
+    val_size: float,
+    test_size: float,
+    stratify_col: str,
+    command: str,
+    id_col: str = "sample",
+) -> Path:
+    """Write split metadata and input provenance to a single JSON file."""
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    sample_ids_path = Path(sample_ids_path)
+    survival_path = Path(survival_path)
+
+    # Build a reproducibility manifest and hash it for provenance tracking.
+    hash_builder = hashlib.sha256()
+    hash_builder.update(sample_ids_path.read_bytes())
+    hash_builder.update(survival_path.read_bytes())
+    hash_builder.update("\n".join(map(str, train_ids)).encode("utf-8"))
+    hash_builder.update("\n".join(map(str, val_ids)).encode("utf-8"))
+    hash_builder.update("\n".join(map(str, test_ids)).encode("utf-8"))
+
+    input_manifest = {
+        "sample_ids_path": str(sample_ids_path.resolve()),
+        "survival_path": str(survival_path.resolve()),
+    }
+
+    cohort_size = len(train_ids) + len(val_ids) + len(test_ids)
+    metadata = {
+        "seed": seed,
+        "fractions": {
+            "val": val_size,
+            "test": test_size,
+            "train": 1.0 - val_size - test_size,
+        },
+        "stratify_col": stratify_col,
+        "id_col": id_col,
+        "cohort_size": cohort_size,
+        "split_sizes": {
+            "train": len(train_ids),
+            "val": len(val_ids),
+            "test": len(test_ids),
+        },
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "input_manifest": input_manifest,
+        "input_manifest_hash_sha256": hash_builder.hexdigest(),
+        "command": command,
+    }
+
+    metadata_path = outdir / "split_metadata.json"
+    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    return metadata_path
+
+
 def main() -> None:
     """Run the split creation pipeline from CLI arguments."""
     parser = argparse.ArgumentParser(description="Create stratified train/val/test splits for TCGA survival modeling.")
@@ -163,6 +229,44 @@ def main() -> None:
         val_ids=val_ids,
         test_ids=test_ids,
         outdir=args.outdir,
+        id_col=args.id_col,
+    )
+
+    write_split_metadata(
+        outdir=args.outdir,
+        sample_ids_path=args.sample_ids_path,
+        survival_path=args.survival_path,
+        train_ids=train_ids,
+        val_ids=val_ids,
+        test_ids=test_ids,
+        seed=args.seed,
+        val_size=args.val_size,
+        test_size=args.test_size,
+        stratify_col=args.event_col,
+        command=shlex.join(
+            [
+                "python",
+                "scripts/create_split.py",
+                "--sample-ids-path",
+                str(args.sample_ids_path),
+                "--survival-path",
+                str(args.survival_path),
+                "--event-col",
+                args.event_col,
+                "--outdir",
+                str(args.outdir),
+                "--id-col",
+                args.id_col,
+                "--val-size",
+                str(args.val_size),
+                "--test-size",
+                str(args.test_size),
+                "--seed",
+                str(args.seed),
+                "--size-tol",
+                str(args.size_tol),
+            ]
+        ),
         id_col=args.id_col,
     )
 
