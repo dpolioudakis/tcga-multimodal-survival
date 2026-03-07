@@ -346,3 +346,19 @@ No plotting. Pure pipeline.
             - train/
             - val/
             - test/
+
+
+
+
+Finalize split as a reproducible artifact
+Add split_metadata.json (seed, fractions, stratify col, cohort size, timestamp, input manifest hash/path).
+Run create_split.py once to generate the canonical train_ids/val_ids/test_ids.
+Clinical missingness handling (train-fit only)
+Decide per-column rules: drop vs impute.
+Fit imputers on train only, apply to val/test.
+Optionally add missingness indicators for key vars.
+RNA preprocessing (train-fit only)
+If you do gene filtering (low-expression/variance), fit thresholds on train only.
+Fit StandardScaler on train only, transform val/test.
+Data assembly
+Assemble X_clin, X_rna, y strictly by split IDs; assert no ID drift/leakage.
