@@ -1,0 +1,55 @@
+{
+  "MISSING_STRINGS_TO_STANDARDIZE": [
+    "",
+    "n/a",
+    "na",
+    "nan",
+    "none",
+    "null"
+  ],
+  "FEATURES_NUMERIC_MEDIAN_IMPUTE": [
+    "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived",
+    "initial_weight.samples"
+  ],
+  "FEATURES_CATEGORICAL_FILL_UNKNOWN": [
+    "ajcc_staging_system_edition.diagnoses"
+  ],
+  "MANUAL_DROP_COLS": [
+    "age_at_diagnosis.diagnoses",
+    "age_at_earliest_diagnosis.diagnoses.xena_derived",
+    "age_at_index.demographic",
+    "days_to_birth.demographic",
+    "tissue_source_site_id.tissue_source_site",
+    "code.tissue_source_site",
+    "disease_type",
+    "morphology.diagnoses",
+    "synchronous_malignancy.diagnoses",
+    "icd_10_code.diagnoses",
+    "site_of_resection_or_biopsy.diagnoses"
+  ],
+  "DROP_COLS": [
+    "age_at_diagnosis.diagnoses",
+    "age_at_earliest_diagnosis.diagnoses.xena_derived",
+    "age_at_index.demographic",
+    "days_to_birth.demographic",
+    "tissue_source_site_id.tissue_source_site",
+    "code.tissue_source_site",
+    "disease_type",
+    "morphology.diagnoses",
+    "synchronous_malignancy.diagnoses",
+    "icd_10_code.diagnoses",
+    "site_of_resection_or_biopsy.diagnoses",
+    "primary_site",
+    "primary_site.project",
+    "project_id.project",
+    "disease_type.project",
+    "name.project",
+    "name.program.project",
+    "project.tissue_source_site",
+    "bcr_id.tissue_source_site"
+  ],
+  "FEATURES_NUMERIC_MEDIANS": {
+    "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived": 57.26027397260274,
+    "initial_weight.samples": 215.0
+  }
+}

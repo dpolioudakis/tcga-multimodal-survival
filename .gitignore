@@ -2,6 +2,9 @@
 data/raw/
 data/processed/
 
+# Tmp dir
+tmp/
+
 # Python
 __pycache__/
 *.pyc
