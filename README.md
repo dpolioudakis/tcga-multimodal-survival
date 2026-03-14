@@ -362,3 +362,11 @@ If you do gene filtering (low-expression/variance), fit thresholds on train only
 Fit StandardScaler on train only, transform val/test.
 Data assembly
 Assemble X_clin, X_rna, y strictly by split IDs; assert no ID drift/leakage.
+
+
+Git:
+This commit will...
+Add clinical preprocessing notebook
+Fix bug in split generation
+Remove redundant age variables
+Implement categorical redundancy check

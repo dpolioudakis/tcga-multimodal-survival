@@ -1,5 +1,8 @@
-# Load split IDs and partition data
-# Fit imputation parameters on train
-# Apply imputations to all splits
-# Validate outputs
-# Save processed datasets
+# load clinical data
+# load splits
+# drop columns
+# fit imputation parameters on train
+# apply imputations
+# validate
+# save outputs
+# save parameters
