@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "modality": "RNA-seq",
+    "cohort": "TCGA-BRCA",
+    "fit_split": "train",
+    "input_unit": "TPM",
+    "samples_as_rows": true,
+    "genes_as_columns": true
+  },
+  "parameters": {
+    "RNA_EXPRESSION_THRESHOLD": 1.0,
+    "RNA_PREVALENCE_THRESHOLD": 0.05,
+    "RNA_VARIANCE_THRESHOLD": 0
+  },
+  "artifacts": {
+    "n_genes_before_filtering": 60660
+  }
+}
