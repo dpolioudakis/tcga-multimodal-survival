@@ -1,12 +1,30 @@
-"""Apply train-fit RNA preprocessing to the TCGA modeling splits.
+"""Preprocess cohort-level RNA expression features for downstream TCGA modeling.
 
-This module is the pipeline implementation of the RNA preprocessing decisions
-developed in the notebook workflow. It assumes the cohort, sample manifest,
-split IDs, and RNA preprocessing rules JSON already exist. The script derives
-the final retained gene list from the training split only, fits a
-``StandardScaler`` on those training genes, applies the unchanged feature set
-and scaler to validation and test, validates split integrity, and saves both
-processed matrices and run metadata for downstream modeling.
+This module loads the raw RNA expression matrix, restricts it to the cohort
+sample IDs, aligns it to the saved train/validation/test split IDs, derives
+train-only preprocessing artifacts, applies them unchanged across splits, and
+writes split-specific parquet files plus run metadata.
+
+Pipeline:
+1. Load cohort sample IDs.
+2. Load the raw RNA expression matrix and subset it to the cohort.
+3. Align the cohort matrix to the saved train/validation/test splits.
+4. Fit train-only RNA preprocessing artifacts.
+5. Transform train, validation, and test splits with the training-derived gene
+   list and scaler.
+6. Validate outputs and write processed artifacts plus metadata.
+
+Inputs:
+- Raw RNA expression table in TSV or TSV.GZ format.
+- Cohort sample ID manifest CSV.
+- RNA preprocessing parameter JSON.
+- Saved split ID CSV files for train, validation, and test.
+
+Outputs:
+- `train/X_rna.parquet`
+- `val/X_rna.parquet`
+- `test/X_rna.parquet`
+- `rna_preprocess_metadata.json`
 """
 
 from __future__ import annotations
@@ -26,15 +44,11 @@ def fit_rna_preprocessing_parameters(
     X_train_df: pd.DataFrame,
     params_path: str | Path,
 ) -> list[str]:
-    """Derive the final retained RNA gene list from the training split.
+    """Derive the final retained gene list from the training split only.
 
-    Parameters:
-    - X_train_df: training RNA expression dataframe with samples as rows and genes as columns.
-    - params_path: path to the saved RNA preprocessing parameter JSON.
-
-    Returns:
-    - RNA_FINAL_GENE_LIST: gene names retained after applying the saved
-      prevalence and variance thresholds to the training split.
+    Genes are filtered sequentially using the saved expression, prevalence,
+    and variance thresholds so that feature selection is fit without access to
+    validation or test data.
     """
     if X_train_df.empty:
         raise ValueError("X_train_df is empty")
@@ -74,20 +88,7 @@ def apply_rna_preprocessing_to_splits(
     RNA_FINAL_GENE_LIST: list[str],
     scaler: StandardScaler,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Filter and scale all RNA splits using training-derived artifacts.
-
-    Parameters:
-    - X_train_df: training RNA dataframe with samples as rows and genes as columns.
-    - X_val_df: validation RNA dataframe with samples as rows and genes as columns.
-    - X_test_df: test RNA dataframe with samples as rows and genes as columns.
-    - RNA_FINAL_GENE_LIST: training-derived final gene list to retain in all splits.
-    - scaler: ``StandardScaler`` fit on the training split only.
-
-    Returns:
-    - X_train_scaled_df: filtered and scaled training dataframe.
-    - X_val_scaled_df: filtered and scaled validation dataframe.
-    - X_test_scaled_df: filtered and scaled test dataframe.
-    """
+    """Apply the training-derived gene list and fitted scaler to all RNA splits."""
     missing_genes_df = pd.DataFrame({
         "split": ["train", "val", "test"],
         "n_missing_genes": [
@@ -132,21 +133,7 @@ def validate_rna_preprocessing_outputs(
     test_ids: pd.Series,
     RNA_FINAL_GENE_LIST: list[str],
 ) -> pd.DataFrame:
-    """Validate processed RNA outputs against the saved split definitions.
-
-    Parameters:
-    - X_train_scaled_df: processed training RNA dataframe.
-    - X_val_scaled_df: processed validation RNA dataframe.
-    - X_test_scaled_df: processed test RNA dataframe.
-    - train_ids: saved training sample IDs.
-    - val_ids: saved validation sample IDs.
-    - test_ids: saved test sample IDs.
-    - RNA_FINAL_GENE_LIST: final training-derived gene list.
-
-    Returns:
-    - validation_summary_df: per-split summary of observed and expected row and
-      feature counts.
-    """
+    """Validate processed RNA splits for size, ordering, and leakage integrity."""
     expected_feature_count = len(RNA_FINAL_GENE_LIST)
 
     validation_summary_df = pd.DataFrame({
@@ -185,13 +172,7 @@ def validate_rna_preprocessing_outputs(
 
 
 def main() -> None:
-    """Run the RNA preprocessing pipeline from the command line.
-
-    The CLI loads the raw RNA matrix, aligns it to the saved cohort and split
-    IDs, derives train-fit preprocessing artifacts, applies them to all splits,
-    writes processed parquet files, and records run metadata alongside the
-    outputs.
-    """
+    """Run the RNA preprocessing pipeline from command-line inputs."""
     parser = argparse.ArgumentParser(description="Preprocess RNA-seq data using train-fit filtering and scaling.")
     parser.add_argument(
         "--rna-path",
@@ -225,7 +206,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # Load saved cohort and split manifests.
+    # Load the cohort manifest and saved split definitions.
     sample_ids_df = pd.read_csv(args.sample_ids_path)
     train_ids_df = pd.read_csv(args.split_dir / "train_ids.csv")
     val_ids_df = pd.read_csv(args.split_dir / "val_ids.csv")
@@ -236,7 +217,7 @@ def main() -> None:
     val_ids = val_ids_df["sample"].astype(str)
     test_ids = test_ids_df["sample"].astype(str)
 
-    # Load the raw RNA matrix and align it to the filtered cohort.
+    # Load the raw RNA matrix and subset it to the cohort samples.
     rna_df = pd.read_csv(args.rna_path, sep="\t")
     if "Ensembl_ID" not in rna_df.columns:
         raise KeyError("Expected 'Ensembl_ID' column in RNA expression table")

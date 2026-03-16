@@ -1,10 +1,28 @@
-"""Create stratified train/validation/test splits for TCGA survival modeling.
+"""Create cohort-level train/validation/test splits for TCGA survival modeling.
 
-This module provides reusable utilities to:
-1) load aligned sample IDs and outcomes,
-2) generate stratified three-way splits,
-3) validate split integrity, and
-4) persist split IDs to disk.
+This module loads the cohort sample manifest and survival labels, derives a
+stratified three-way split on the requested event column, validates split
+integrity, and writes split ID files plus split metadata for downstream
+preprocessing and modeling.
+
+Pipeline:
+1. Load cohort sample IDs and survival outcomes.
+2. Inner-join the manifests to form the labeled cohort table.
+3. Create stratified train, validation, and test splits.
+4. Validate split sizes, ID disjointness, and event balance summary.
+5. Write split ID files and split metadata.
+
+Inputs:
+- Cohort sample ID CSV.
+- Survival TSV or TSV.GZ file.
+- Stratification column name.
+- Split fractions and random seed.
+
+Outputs:
+- `train_ids.csv`
+- `val_ids.csv`
+- `test_ids.csv`
+- `split_metadata.json`
 """
 
 from datetime import datetime, timezone
@@ -25,7 +43,7 @@ def load_inputs(
     event_col: str,
     id_col: str = "sample",
 ) -> pd.DataFrame:
-    """Load sample IDs and survival labels, then inner-join on the sample ID column."""
+    """Load cohort sample IDs and survival labels, then inner-join on sample ID."""
     ids = pd.read_csv(sample_ids_path)[id_col].astype(str)
     surv = pd.read_csv(survival_path, sep="\t")[[id_col, event_col]].astype({id_col: str})
     id_outcome_df = pd.DataFrame({id_col: ids}).merge(surv, on=id_col, how="inner")
@@ -40,7 +58,7 @@ def make_splits(
     seed: int = 42,
     id_col: str = "sample",
 ) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """Create stratified train/validation/test ID splits from a labeled dataframe."""
+    """Create stratified train, validation, and test sample ID splits."""
     y = df[event_col].astype(int)
 
     train_ids, temp_ids = train_test_split(
@@ -72,22 +90,22 @@ def validate_and_summarize_splits(
     test_size: float = 0.15,
     size_tol: int = 1,
 ) -> None:
-    """Validate split integrity and print split sizes plus event rates."""
-    # 1) No duplicate sample IDs in source frame
+    """Validate split integrity and print split size and event-rate summaries."""
+    # 1) Verify unique source sample IDs.
     assert not df[id_col].duplicated().any(), "Duplicate sample IDs found in input dataframe"
 
-    # 2) No missing values in key columns
+    # 2) Verify required columns are complete.
     key_cols = [id_col, event_col]
     missing_counts = df[key_cols].isna().sum()
     assert (missing_counts == 0).all(), f"Missing values detected in key columns: {missing_counts.to_dict()}"
 
-    # 3) No overlap between train/val/test split IDs
+    # 3) Verify split membership is disjoint.
     train_set, val_set, test_set = set(train_ids), set(val_ids), set(test_ids)
     assert train_set.isdisjoint(val_set), "Overlap found between train and val IDs"
     assert train_set.isdisjoint(test_set), "Overlap found between train and test IDs"
     assert val_set.isdisjoint(test_set), "Overlap found between val and test IDs"
 
-    # 4) Dataset sizes match expectations
+    # 4) Verify observed split sizes are consistent with requested fractions.
     n_total = len(df)
     expected_test = round(n_total * test_size)
     expected_val = round(n_total * val_size)
@@ -112,7 +130,7 @@ def save_splits(
     outdir: str | Path,
     id_col: str = "sample",
 ) -> None:
-    """Save train, validation, and test sample IDs to CSV files."""
+    """Write train, validation, and test sample ID files to the output directory."""
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -135,14 +153,14 @@ def write_split_metadata(
     command: str,
     id_col: str = "sample",
 ) -> Path:
-    """Write split metadata and input provenance to a single JSON file."""
+    """Write split metadata, input provenance, and the CLI command to JSON."""
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
     sample_ids_path = Path(sample_ids_path)
     survival_path = Path(survival_path)
 
-    # Build a reproducibility manifest and hash it for provenance tracking.
+    # Hash raw inputs and split membership to record the split provenance.
     hash_builder = hashlib.sha256()
     hash_builder.update(sample_ids_path.read_bytes())
     hash_builder.update(survival_path.read_bytes())
@@ -183,7 +201,7 @@ def write_split_metadata(
 
 
 def main() -> None:
-    """Run the split creation pipeline from CLI arguments."""
+    """Run the split creation pipeline from command-line inputs."""
     parser = argparse.ArgumentParser(description="Create stratified train/val/test splits for TCGA survival modeling.")
     parser.add_argument("--sample-ids-path", type=Path, required=True, help="Path to CSV with sample IDs.")
     parser.add_argument("--survival-path", type=Path, required=True, help="Path to TSV/TSV.GZ survival file.")
