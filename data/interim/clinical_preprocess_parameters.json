@@ -55,6 +55,28 @@
     ],
     "FEATURES_CATEGORICAL_FILL_UNKNOWN": [
       "ajcc_staging_system_edition.diagnoses"
+    ],
+    "FEATURES_BOOL_TO_INT": [
+      "oct_embedded.samples"
+    ],
+    "FEATURES_ONE_HOT_ENCODE": [
+      "ajcc_pathologic_m.diagnoses",
+      "ajcc_pathologic_n.diagnoses",
+      "ajcc_pathologic_stage.diagnoses",
+      "ajcc_pathologic_t.diagnoses",
+      "ajcc_staging_system_edition.diagnoses",
+      "ethnicity.demographic",
+      "gender.demographic",
+      "name.tissue_source_site",
+      "preservation_method.samples",
+      "primary_diagnosis.diagnoses",
+      "prior_malignancy.diagnoses",
+      "prior_treatment.diagnoses",
+      "race.demographic",
+      "tissue_or_organ_of_origin.diagnoses",
+      "treatment_or_therapy.treatments.diagnoses",
+      "treatment_type.treatments.diagnoses",
+      "vital_status.demographic"
     ]
   },
   "artifacts": {
@@ -75,6 +97,8 @@
     "n_drop_cols": 31,
     "n_manual_drop_cols": 11,
     "n_numeric_median_impute": 2,
-    "n_categorical_fill_unknown": 1
+    "n_categorical_fill_unknown": 1,
+    "n_bool_to_int": 1,
+    "n_one_hot_encode": 17
   }
 }

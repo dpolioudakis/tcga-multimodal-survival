@@ -4,8 +4,8 @@ This module loads the raw clinical table, restricts it to the cohort sample IDs
 and feature set, aligns it to the saved train/validation/test split IDs,
 applies train-fit preprocessing rules, and writes split-specific parquet files
 plus run metadata. The preprocessing is designed to preserve split integrity:
-parameters such as numeric medians are fit on the training partition only and
-then applied unchanged to validation and test data.
+all parameters (medians, encoder categories) are fit on the training partition
+only and then applied unchanged to validation and test data.
 
 Pipeline:
 1. Load cohort sample IDs.
@@ -13,9 +13,19 @@ Pipeline:
 3. Subset the raw clinical table to those samples and features.
 4. Apply configured preprocessing rules for missing-value standardization.
 5. Align the cohort table to the saved train/validation/test splits.
-6. Fit train-only preprocessing artifacts.
-7. Transform train, validation, and test splits.
-8. Validate outputs and write processed artifacts plus metadata.
+6. Drop configured columns.
+7. Fit train-only preprocessing artifacts (numeric medians, one-hot encoder).
+8. Apply imputation, boolean-to-int casting, and one-hot encoding to all splits.
+9. Validate outputs (no missing values, all-numeric columns, no leakage).
+10. Write processed artifacts plus metadata.
+
+Preprocessing transforms applied (in order):
+- Drop columns specified in DROP_COLS.
+- Impute numeric columns with train-set medians.
+- Fill selected categorical columns with "unknown".
+- Cast boolean columns to int (0/1).
+- One-hot encode remaining categorical columns using train-fit categories;
+  unseen categories in val/test are encoded as all-zeros.
 
 Inputs:
 - Raw clinical table in TSV or TSV.GZ format.
@@ -41,6 +51,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
 
 
 def load_clinical_cohort(
@@ -195,7 +206,83 @@ def fill_unknown_for_selected_categorical_features(
     return X_train_df, X_val_df, X_test_df
 
 
-def validate_imputed_outputs(
+def apply_bool_to_int(
+    X_train_df: pd.DataFrame,
+    X_val_df: pd.DataFrame,
+    X_test_df: pd.DataFrame,
+    features_bool_to_int: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Cast boolean columns to int (0/1) in all splits.
+
+    Parameters:
+    - X_train_df, X_val_df, X_test_df: feature matrices for each split
+    - features_bool_to_int: boolean column names to cast
+
+    Returns:
+    - X_train_df, X_val_df, X_test_df with boolean columns cast to int
+    """
+    X_train_df = X_train_df.copy()
+    X_val_df = X_val_df.copy()
+    X_test_df = X_test_df.copy()
+
+    X_train_df[features_bool_to_int] = X_train_df[features_bool_to_int].astype(int)
+    X_val_df[features_bool_to_int] = X_val_df[features_bool_to_int].astype(int)
+    X_test_df[features_bool_to_int] = X_test_df[features_bool_to_int].astype(int)
+
+    return X_train_df, X_val_df, X_test_df
+
+
+def fit_one_hot_encoder(
+    X_train_df: pd.DataFrame,
+    features_one_hot_encode: list[str],
+) -> tuple[OneHotEncoder, list[str]]:
+    """Fit a one-hot encoder on training data only.
+
+    Parameters:
+    - X_train_df: training feature matrix
+    - features_one_hot_encode: categorical column names to encode
+
+    Returns:
+    - ohe: fitted OneHotEncoder
+    - ohe_feature_names: output column names after encoding
+    """
+    ohe = OneHotEncoder(sparse_output=False, handle_unknown="ignore", dtype=float)
+    ohe.fit(X_train_df[features_one_hot_encode])
+    ohe_feature_names = ohe.get_feature_names_out(features_one_hot_encode).tolist()
+    return ohe, ohe_feature_names
+
+
+def apply_one_hot_encoding(
+    X_train_df: pd.DataFrame,
+    X_val_df: pd.DataFrame,
+    X_test_df: pd.DataFrame,
+    ohe: OneHotEncoder,
+    features_one_hot_encode: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Apply a fitted one-hot encoder to all splits, replacing original categorical columns.
+
+    Parameters:
+    - X_train_df, X_val_df, X_test_df: feature matrices for each split
+    - ohe: fitted OneHotEncoder (fit on training data only)
+    - features_one_hot_encode: categorical column names that were encoded
+
+    Returns:
+    - X_train_df, X_val_df, X_test_df with categorical columns replaced by OHE columns
+    """
+    ohe_feature_names = ohe.get_feature_names_out(features_one_hot_encode).tolist()
+
+    def encode_split(df: pd.DataFrame) -> pd.DataFrame:
+        encoded = pd.DataFrame(
+            ohe.transform(df[features_one_hot_encode]),
+            index=df.index,
+            columns=ohe_feature_names,
+        )
+        return pd.concat([df.drop(columns=features_one_hot_encode), encoded], axis=1)
+
+    return encode_split(X_train_df), encode_split(X_val_df), encode_split(X_test_df)
+
+
+def validate_preprocessed_outputs(
     X_train_df: pd.DataFrame,
     X_val_df: pd.DataFrame,
     X_test_df: pd.DataFrame,
@@ -203,7 +290,7 @@ def validate_imputed_outputs(
     val_ids: pd.Series,
     test_ids: pd.Series,
 ) -> None:
-    """Validate processed split outputs for completeness, ordering, and leakage."""
+    """Validate processed split outputs for completeness, ordering, encoding, and leakage."""
     for split_name, split_df, split_ids in [
         ("train", X_train_df, train_ids),
         ("val", X_val_df, val_ids),
@@ -223,6 +310,13 @@ def validate_imputed_outputs(
 
         if list(split_df.index.astype(str)) != list(split_ids.astype(str)):
             raise ValueError(f"{split_name} sample IDs do not match the saved split order")
+
+        non_numeric_cols = split_df.select_dtypes(exclude="number").columns.tolist()
+        if non_numeric_cols:
+            raise ValueError(f"{split_name} split contains non-numeric columns after encoding: {non_numeric_cols}")
+
+        if list(split_df.columns) != list(X_train_df.columns):
+            raise ValueError(f"{split_name} column order does not match train")
 
     train_id_set = set(X_train_df.index.astype(str))
     val_id_set = set(X_val_df.index.astype(str))
@@ -288,7 +382,6 @@ def main() -> None:
     n_features_before_drop = int(clin_df.shape[1])
 
     object_cols = clin_df.select_dtypes(include=["object", "string"]).columns
-    # Standardize string-coded missing values before split-specific processing.
     clin_df.loc[:, object_cols] = clin_df[object_cols].apply(
         lambda col: col.str.strip().mask(
             col.str.strip().str.lower().isin(params["MISSING_STRINGS_TO_STANDARDIZE"]),
@@ -323,7 +416,27 @@ def main() -> None:
         features_categorical_fill_unknown=params["FEATURES_CATEGORICAL_FILL_UNKNOWN"],
     )
 
-    validate_imputed_outputs(
+    X_train_df, X_val_df, X_test_df = apply_bool_to_int(
+        X_train_df=X_train_df,
+        X_val_df=X_val_df,
+        X_test_df=X_test_df,
+        features_bool_to_int=params["FEATURES_BOOL_TO_INT"],
+    )
+
+    ohe, ohe_feature_names = fit_one_hot_encoder(
+        X_train_df=X_train_df,
+        features_one_hot_encode=params["FEATURES_ONE_HOT_ENCODE"],
+    )
+
+    X_train_df, X_val_df, X_test_df = apply_one_hot_encoding(
+        X_train_df=X_train_df,
+        X_val_df=X_val_df,
+        X_test_df=X_test_df,
+        ohe=ohe,
+        features_one_hot_encode=params["FEATURES_ONE_HOT_ENCODE"],
+    )
+
+    validate_preprocessed_outputs(
         X_train_df=X_train_df,
         X_val_df=X_val_df,
         X_test_df=X_test_df,
@@ -365,7 +478,14 @@ def main() -> None:
         },
         "config_path": str(args.params_path.resolve()),
         "random_seed": None,
-        "key_parameters_used": params,
+        "key_parameters_used": {
+            "MISSING_STRINGS_TO_STANDARDIZE": params["MISSING_STRINGS_TO_STANDARDIZE"],
+            "DROP_COLS": params["DROP_COLS"],
+            "FEATURES_NUMERIC_MEDIAN_IMPUTE": params["FEATURES_NUMERIC_MEDIAN_IMPUTE"],
+            "FEATURES_CATEGORICAL_FILL_UNKNOWN": params["FEATURES_CATEGORICAL_FILL_UNKNOWN"],
+            "FEATURES_BOOL_TO_INT": params["FEATURES_BOOL_TO_INT"],
+            "FEATURES_ONE_HOT_ENCODE": params["FEATURES_ONE_HOT_ENCODE"],
+        },
         "dataset_statistics": {
             "n_samples_total": int(clin_df.shape[0]),
             "n_samples_train": int(X_train_df.shape[0]),
@@ -376,6 +496,9 @@ def main() -> None:
             "n_drop_cols": int(len(params["DROP_COLS"])),
             "n_numeric_median_impute": int(len(params["FEATURES_NUMERIC_MEDIAN_IMPUTE"])),
             "n_categorical_fill_unknown": int(len(params["FEATURES_CATEGORICAL_FILL_UNKNOWN"])),
+            "n_bool_to_int": int(len(params["FEATURES_BOOL_TO_INT"])),
+            "n_one_hot_encode_input_cols": int(len(params["FEATURES_ONE_HOT_ENCODE"])),
+            "n_one_hot_encode_output_cols": int(len(ohe_feature_names)),
         },
     }
 

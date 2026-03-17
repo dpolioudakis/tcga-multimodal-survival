@@ -183,8 +183,8 @@ def main() -> None:
     parser.add_argument(
         "--sample-ids-path",
         type=Path,
-        default=Path("data/interim/sample_ids_filtered.csv"),
-        help="Path to the filtered cohort sample IDs CSV.",
+        default=Path("data/interim/sample_ids_cohort.csv"),
+        help="Path to the cohort sample IDs CSV.",
     )
     parser.add_argument(
         "--params-path",

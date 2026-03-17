@@ -1,6 +1,5 @@
 # Data
-data/raw/
-data/processed/
+data/
 
 # Tmp dir
 tmp/
