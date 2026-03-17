@@ -18,6 +18,7 @@
     ],
     "DROP_COLS": [
       "vital_status.demographic",
+      "treatment_or_therapy.treatments.diagnoses",
       "age_at_diagnosis.diagnoses",
       "age_at_earliest_diagnosis.diagnoses.xena_derived",
       "age_at_index.demographic",
@@ -75,13 +76,13 @@
       "prior_treatment.diagnoses",
       "race.demographic",
       "tissue_or_organ_of_origin.diagnoses",
-      "treatment_or_therapy.treatments.diagnoses",
       "treatment_type.treatments.diagnoses"
     ]
   },
   "artifacts": {
     "MANUAL_DROP_COLS": [
       "vital_status.demographic",
+      "treatment_or_therapy.treatments.diagnoses",
       "age_at_diagnosis.diagnoses",
       "age_at_earliest_diagnosis.diagnoses.xena_derived",
       "age_at_index.demographic",
@@ -95,11 +96,11 @@
       "site_of_resection_or_biopsy.diagnoses"
     ],
     "n_features_before_drop": 34,
-    "n_drop_cols": 32,
-    "n_manual_drop_cols": 12,
+    "n_drop_cols": 33,
+    "n_manual_drop_cols": 13,
     "n_numeric_median_impute": 2,
     "n_categorical_fill_unknown": 1,
     "n_bool_to_int": 1,
-    "n_one_hot_encode": 16
+    "n_one_hot_encode": 15
   }
 }
