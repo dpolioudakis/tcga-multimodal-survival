@@ -226,27 +226,25 @@ Build and rigorously evaluate multimodal models to predict 5-year overall surviv
 
 
 ### Directory structure
-- data/
-    - raw/
-        - Immutable source data
-    - interim/
-        - Dataset definition
-            - Cleaned, aligned, QC’d
-            - Cohort defined
-            - No train/test split yet
-    - processed/
-        - Experiment definition
-            - Split applied
-            - Scaling/imputation fit
-            - Model-ready matrices
-        - splits/
-            - train_ids.csv
-            - val_ids.csv
-            - test_ids.csv
-        - model_inputs/
-            - train/
-            - val/
-            - test/
+
+```
+data/
+├── raw/                        # Immutable source files (never modified)
+├── interim/                    # Cohort definition: sample IDs, feature manifests, preprocessing parameters
+├── processed/                  # Model-ready outputs (split applied, preprocessing fit on train)
+│   ├── splits/                 # Train/val/test sample ID CSVs
+│   ├── clinical/               # Preprocessed clinical feature matrices (train/, val/, test/)
+│   ├── rna/                    # Preprocessed RNA feature matrices (train/, val/, test/)
+│   └── assembled/              # Aligned, merged feature matrices ready for modeling (train/, val/, test/)
+└── tests/                      # Ephemeral outputs from notebook dev/smoke tests
+
+models/
+└── baselines/                  # Fitted model artifacts, predictions, and metrics
+
+notebooks/                      # Step-by-step development notebooks (01–06)
+scripts/                        # Reusable pipeline modules (CLI entry points)
+reports/                        # Figures and analysis outputs
+```
 
 
 
