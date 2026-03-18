@@ -1,0 +1,38 @@
+{
+  "script_name": "train_baselines.py",
+  "timestamp": "2026-03-18T01:09:25.172910+00:00",
+  "cli_command": "../scripts/train_baselines.py --assembled-dir ../data/processed/assembled --outdir ../models/baselines --random-state 42",
+  "input_files": {
+    "assembled_dir": "/Users/damon/Documents/applied_ml_playbooks/tcga-multimodal-survival/data/processed/assembled"
+  },
+  "key_parameters_used": {
+    "random_state": 42,
+    "model_type": "LogisticRegressionCV",
+    "penalty": "l2",
+    "cv_folds": 5,
+    "Cs": 10,
+    "solver": "lbfgs",
+    "clinical_best_c": 0.005994842503189409,
+    "rna_best_c": 2.782559402207126
+  },
+  "dataset_statistics": {
+    "n_samples_train": 203,
+    "n_samples_val": 43,
+    "n_samples_test": 44,
+    "n_events_train": 66,
+    "n_events_val": 14,
+    "n_events_test": 14,
+    "n_clin_features": 98,
+    "n_rna_features": 25431,
+    "clinical_cv_auc": 0.8551,
+    "rna_cv_auc": 0.6836
+  },
+  "output_files": {
+    "clinical_model": "../models/baselines/clinical_model.pkl",
+    "rna_model": "../models/baselines/rna_model.pkl",
+    "clinical_scaler": "../models/baselines/clinical_scaler.pkl",
+    "predictions_val": "../models/baselines/predictions_val.parquet",
+    "predictions_test": "../models/baselines/predictions_test.parquet",
+    "metrics": "../models/baselines/metrics.json"
+  }
+}
