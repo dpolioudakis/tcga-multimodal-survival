@@ -1,0 +1,55 @@
+{
+  "script_name": "train_xgboost.py",
+  "timestamp": "2026-03-18T22:01:17.954011+00:00",
+  "cli_command": "../scripts/train_xgboost.py --assembled-dir ../data/processed/assembled --outdir ../models/xgboost --random-state 42",
+  "input_files": {
+    "assembled_dir": "/Users/damon/Documents/applied_ml_playbooks/tcga-multimodal-survival/data/processed/assembled"
+  },
+  "key_parameters_used": {
+    "random_state": 42,
+    "model_type": "XGBClassifier",
+    "param_grid": {
+      "max_depth": [
+        3,
+        5
+      ],
+      "learning_rate": [
+        0.05,
+        0.1
+      ],
+      "colsample_bytree": [
+        0.05,
+        0.1
+      ]
+    },
+    "best_params": {
+      "max_depth": 5,
+      "learning_rate": 0.1,
+      "colsample_bytree": 0.1
+    },
+    "n_iter": 5,
+    "n_splits": 3,
+    "n_estimators_max": 1000,
+    "early_stopping_rounds": 50,
+    "best_n_estimators": 95
+  },
+  "dataset_statistics": {
+    "n_samples_train": 203,
+    "n_samples_val": 43,
+    "n_samples_test": 44,
+    "n_events_train": 66,
+    "n_events_val": 14,
+    "n_events_test": 14,
+    "n_features": 25529,
+    "val_roc_auc": 0.7857,
+    "val_ap": 0.6868,
+    "test_roc_auc": 0.6714,
+    "test_ap": 0.4746
+  },
+  "output_files": {
+    "xgboost_model": "../models/xgboost/xgboost_model.pkl",
+    "predictions_val": "../models/xgboost/predictions_val.parquet",
+    "predictions_test": "../models/xgboost/predictions_test.parquet",
+    "metrics": "../models/xgboost/metrics.json"
+  }
+}
