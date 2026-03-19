@@ -224,40 +224,15 @@ Purpose:
 
 Train end-to-end for 5-year survival classification.
 
-### 6. Ablation Comparison
+### 6. Analysis and Model Selection
 
-Explicitly compare: Clinical-only LR, RNA-only LR, XGBoost (RNA + clinical), Deep concat model, Attention fusion model.
+Compare all models (Clinical LR, RNA LR, XGBoost, Concat MLP, Attention fusion) on ROC-AUC, AP, and top-20% high-risk capture.
 
-For each: ROC-AUC, AP, calibration, top-20% high-risk capture.
+Risk stratification on test set: Kaplan–Meier survival curves and log-rank test to show decision-oriented utility beyond AUC.
 
-Goal: demonstrate whether attention meaningfully improves over naive fusion.
+Interpretability: SHAP feature importance for XGBoost; learned modality weight distribution for the attention model.
 
-### 7. Risk Stratification Analysis
-
-On test set:
-- Define high-risk group (top 20% predicted risk).
-- Generate Kaplan–Meier survival curves.
-- Perform log-rank test.
-- Compare separation across models.
-
-Purpose: show decision-oriented utility beyond AUC.
-
-### 8. Interpretability
-
-XGBoost:
-- SHAP feature importance.
-- Confirm biologically plausible drivers (e.g., stage, age).
-
-Attention Model:
-- Inspect learned modality weights distribution.
-- Show example patients where clinical dominates and where RNA dominates.
-- Sanity check against clinical intuition.
-
-### 9. Final Model Selection
-
-Compare models based on: discrimination (AUC, AP), calibration, high-risk capture, interpretability, deployment simplicity.
-
-Explicitly justify final recommendation.
+Select final model based on discrimination, high-risk capture, interpretability, and deployment simplicity.
 
 ---
 

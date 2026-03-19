@@ -1,0 +1,39 @@
+{
+  "script_name": "train_multimodal.py",
+  "timestamp": "2026-03-19T22:52:50.034178+00:00",
+  "cli_command": "../scripts/train_multimodal.py --assembled-dir ../data/processed/assembled --outdir ../models/multimodal --n-epochs 10 --random-state 42",
+  "input_files": {
+    "assembled_dir": "/Users/damon/Documents/applied_ml_playbooks/tcga-multimodal-survival/data/processed/assembled"
+  },
+  "key_parameters_used": {
+    "random_state": 42,
+    "n_epochs": 10,
+    "batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "dropout": 0.5,
+    "optimizer": "Adam",
+    "loss": "BCELoss"
+  },
+  "dataset_statistics": {
+    "n_samples_train": 203,
+    "n_samples_val": 43,
+    "n_samples_test": 44,
+    "n_events_train": 66,
+    "n_events_val": 14,
+    "n_events_test": 14,
+    "n_clin_features": 98,
+    "n_rna_features": 25431,
+    "val_roc_auc_concat": 0.5936,
+    "val_roc_auc_attn": 0.6453,
+    "test_roc_auc_concat": 0.6786,
+    "test_roc_auc_attn": 0.5381
+  },
+  "output_files": {
+    "concat_model": "../models/multimodal/concat_model.pkl",
+    "attn_model": "../models/multimodal/attn_model.pkl",
+    "predictions_val": "../models/multimodal/predictions_val.parquet",
+    "predictions_test": "../models/multimodal/predictions_test.parquet",
+    "metrics": "../models/multimodal/metrics.json"
+  }
+}
