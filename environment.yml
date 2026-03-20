@@ -15,6 +15,7 @@ dependencies:
   - pyarrow
   - requests
   - shap
+  - ipywidgets
   - pytest
   - pip
   - pip:

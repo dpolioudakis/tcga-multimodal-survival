@@ -34,7 +34,7 @@ Clinical LR is the strongest model across discrimination and risk stratification
 
 ```bash
 conda env create -f environment.yml  # Python 3.10
-conda activate tcga-survival
+conda activate tcga-multimodal-survival
 ```
 
 Data download (public, no credentials required):
@@ -47,33 +47,23 @@ bash scripts/download_data.sh
 
 ## Reproducing the Pipeline
 
-Run steps in order. Each script writes outputs consumed by the next.
-
 ```bash
-# 1. Create train/val/test split
-python scripts/create_split.py
-
-# 2. Preprocess clinical features
-python scripts/preprocess_clinical.py
-
-# 3. Preprocess RNA features
-python scripts/preprocess_rna.py
-
-# 4. Assemble model-ready datasets
-python scripts/assemble_dataset.py
-
-# 5. Train baseline models
-python scripts/train_baselines.py \
-    --assembled-dir data/processed/assembled \
-    --outdir models/baselines
-
-# 6. Train XGBoost benchmark
-# python scripts/train_xgboost.py \
-#     --assembled-dir data/processed/assembled \
-#     --outdir models/xgboost
+make pipeline
 ```
 
-Each script also has a corresponding development notebook in `notebooks/`.
+To run individual steps:
+
+```bash
+make split
+make preprocess-clinical
+make preprocess-rna
+make assemble
+make train-baselines
+make train-xgboost
+make train-multimodal
+```
+
+Run `make help` to see all available targets. Each script also has a corresponding development notebook in `notebooks/`.
 
 ---
 
