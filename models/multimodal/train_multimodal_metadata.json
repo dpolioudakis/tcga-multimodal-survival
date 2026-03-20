@@ -1,6 +1,6 @@
 {
   "script_name": "train_multimodal.py",
-  "timestamp": "2026-03-19T22:52:50.034178+00:00",
+  "timestamp": "2026-03-20T21:28:32.590187+00:00",
   "cli_command": "../scripts/train_multimodal.py --assembled-dir ../data/processed/assembled --outdir ../models/multimodal --n-epochs 10 --random-state 42",
   "input_files": {
     "assembled_dir": "/Users/damon/Documents/applied_ml_playbooks/tcga-multimodal-survival/data/processed/assembled"
