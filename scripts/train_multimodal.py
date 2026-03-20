@@ -27,6 +27,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import pickle
 import shlex
@@ -198,8 +199,11 @@ def train_model(
     clin_val: torch.Tensor,
     y_val_t: torch.Tensor,
     n_epochs: int,
+    criterion: nn.Module,
     lr: float = 1e-3,
     weight_decay: float = 1e-4,
+    patience: int = 20,
+    max_norm: float = 1.0,
 ) -> tuple[list[float], list[float]]:
     """Train a fusion model and return per-epoch train and val losses.
 
@@ -209,16 +213,22 @@ def train_model(
         rna_val: RNA validation tensor for loss monitoring.
         clin_val: Clinical validation tensor for loss monitoring.
         y_val_t: Validation labels tensor.
-        n_epochs: Number of training epochs.
+        n_epochs: Maximum number of training epochs.
+        criterion: Loss function.
         lr: Adam learning rate.
         weight_decay: L2 regularization strength.
+        patience: Early stopping patience (epochs without val loss improvement).
+        max_norm: Maximum gradient norm for clipping.
 
     Returns:
         train_losses, val_losses: per-epoch loss lists.
     """
-    criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)
     train_losses, val_losses = [], []
+    best_val_loss = float("inf")
+    best_weights  = copy.deepcopy(model.state_dict())
+    epochs_no_improve = 0
 
     for epoch in range(1, n_epochs + 1):
         model.train()
@@ -227,6 +237,7 @@ def train_model(
             optimizer.zero_grad()
             loss = criterion(model(rna_batch, clin_batch), y_batch)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
             batch_losses.append(loss.item())
 
@@ -236,10 +247,23 @@ def train_model(
 
         train_losses.append(sum(batch_losses) / len(batch_losses))
         val_losses.append(val_loss)
+        scheduler.step(val_loss)
 
-        if epoch % 10 == 0:
-            print(f"Epoch {epoch:3d} — train loss: {train_losses[-1]:.4f}  val loss: {val_loss:.4f}")
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_weights  = copy.deepcopy(model.state_dict())
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
 
+        if epoch % 20 == 0:
+            print(f"Epoch {epoch:3d}  train: {train_losses[-1]:.4f}  val: {val_loss:.4f}  best: {best_val_loss:.4f}")
+
+        if epochs_no_improve >= patience:
+            print(f"Early stopping at epoch {epoch} (no improvement for {patience} epochs)")
+            break
+
+    model.load_state_dict(best_weights)
     return train_losses, val_losses
 
 
@@ -247,7 +271,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train multimodal deep learning models.")
     parser.add_argument("--assembled-dir", required=True, help="Path to assembled dataset directory.")
     parser.add_argument("--outdir", required=True, help="Output directory for artifacts.")
-    parser.add_argument("--n-epochs", type=int, default=10, help="Number of training epochs.")
+    parser.add_argument("--n-epochs", type=int, default=200, help="Maximum number of training epochs (early stopping may halt sooner).")
     parser.add_argument("--batch-size", type=int, default=32, help="Training batch size.")
     parser.add_argument("--lr", type=float, default=1e-3, help="Adam learning rate.")
     parser.add_argument("--weight-decay", type=float, default=1e-4, help="L2 regularization strength.")
@@ -283,6 +307,8 @@ def main() -> None:
         shuffle=True,
     )
 
+    criterion = nn.BCELoss()
+
     # Train concatenation fusion model
     print("\n--- Concatenation fusion model ---")
     concat_model = ConcatFusionModel(
@@ -290,7 +316,7 @@ def main() -> None:
         ClinicalEncoder(n_clin_features, dropout=args.dropout),
         dropout=args.dropout,
     )
-    train_model(concat_model, train_loader, rna_val, clin_val, y_val_t, args.n_epochs, args.lr, args.weight_decay)
+    train_model(concat_model, train_loader, rna_val, clin_val, y_val_t, args.n_epochs, criterion, args.lr, args.weight_decay)
 
     # Train attention fusion model
     print("\n--- Attention fusion model ---")
@@ -298,7 +324,7 @@ def main() -> None:
         RNAEncoder(n_rna_features, dropout=args.dropout),
         ClinicalEncoder(n_clin_features, dropout=args.dropout),
     )
-    train_model(attn_model, train_loader, rna_val, clin_val, y_val_t, args.n_epochs, args.lr, args.weight_decay)
+    train_model(attn_model, train_loader, rna_val, clin_val, y_val_t, args.n_epochs, criterion, args.lr, args.weight_decay)
 
     # Generate predictions
     concat_model.eval()
