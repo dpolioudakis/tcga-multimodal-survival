@@ -23,8 +23,8 @@ Six models were compared, from a majority-class null baseline to a custom attent
 | Clinical LR | 0.884 | 0.826 | 0.786 | 0.675 |
 | RNA LR | 0.719 | 0.582 | 0.614 | 0.474 |
 | XGBoost (concat) | 0.786 | 0.687 | 0.671 | 0.475 |
-| Deep concat MLP | 0.594 | 0.549 | 0.679 | 0.541 |
-| Attention fusion | 0.645 | 0.514 | 0.538 | 0.380 |
+| Deep concat MLP | 0.692 | 0.587 | 0.674 | 0.584 |
+| Attention fusion | 0.643 | 0.528 | 0.662 | 0.518 |
 
 **Clinical LR is the strongest model** (test AUC 0.786, AP 0.675). Deep learning models underperform at this sample size, consistent with the broader literature on deep learning in small biomedical cohorts. The multimodal models are included as architectural demonstrations rather than optimized production models.
 
