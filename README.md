@@ -1,6 +1,6 @@
 # Multimodal Survival Modeling with TCGA
 
-A step-by-step guide to building and evaluating multimodal models for 5-year overall survival prediction using TCGA BRCA RNA-seq and clinical data. Covers leakage control, strong baselines, attention-based fusion, and decision-oriented evaluation.
+A step-by-step guide to building and evaluating survival models on TCGA BRCA RNA-seq and clinical data — from logistic regression through XGBoost to attention-based deep learning.
 
 ---
 
@@ -8,32 +8,36 @@ A step-by-step guide to building and evaluating multimodal models for 5-year ove
 
 | Model | Val AUC | Val AP | Test AUC | Test AP |
 |---|---|---|---|---|
+| Majority class | 0.500 | 0.326 | 0.500 | 0.318 |
 | Clinical LR | 0.884 | 0.826 | 0.786 | 0.675 |
-| RNA LR | 0.709 | 0.575 | 0.624 | 0.479 |
-| XGBoost (concat) | — | — | — | — |
-| Deep concat MLP | — | — | — | — |
-| Attention fusion | — | — | — | — |
+| RNA LR | 0.719 | 0.582 | 0.614 | 0.474 |
+| XGBoost (concat) | 0.786 | 0.687 | 0.671 | 0.475 |
+| Deep concat MLP | 0.594 | 0.549 | 0.679 | 0.541 |
+| Attention fusion | 0.645 | 0.514 | 0.538 | 0.380 |
 
 Top-20% risk capture (test set):
 
 | Model | High-risk event rate | Low-risk event rate |
 |---|---|---|
+| Majority class | N/A | N/A |
 | Clinical LR | 0.667 | 0.111 |
 | RNA LR | 0.556 | 0.222 |
-| XGBoost (concat) | — | — |
-| Deep concat MLP | — | — |
-| Attention fusion | — | — |
+| XGBoost (concat) | 0.444 | 0.000 |
+| Deep concat MLP | 0.444 | 0.333 |
+| Attention fusion | 0.667 | 0.000 |
+
+Clinical LR is the strongest model across discrimination and risk stratification. Deep learning models underperform at this sample size (n=203 training samples), consistent with the broader literature on deep learning in small biomedical cohorts. The deep learning models are included as architectural demonstrations of multimodal fusion rather than optimized production models. The project emphasizes rigorous leakage control, reproducible pipelines, and honest evaluation over maximizing reported metrics.
 
 ---
 
 ## Setup
 
 ```bash
-conda env create -f environment.yml
+conda env create -f environment.yml  # Python 3.10
 conda activate tcga-survival
 ```
 
-Data download (requires GDC access):
+Data download (public, no credentials required):
 
 ```bash
 bash scripts/download_data.sh
@@ -73,33 +77,7 @@ Each script also has a corresponding development notebook in `notebooks/`.
 
 ---
 
-## Guide Structure
-
-This project is organized as a teaching guide. Each step introduces a concept, motivates the design decision, and implements it in a notebook before refactoring into a reusable script.
-
-1. **Data preparation** (`01_data_prep.ipynb`) — cohort definition, QC, modality alignment
-2. **Split creation** (`02_create_split.ipynb`) — stratified train/val/test split, leakage safeguards
-3. **Clinical preprocessing** (`03_preprocess_clinical.ipynb`) — imputation, encoding, leakage checks; all parameters fit on train only
-4. **RNA preprocessing** (`04_preprocess_rna.ipynb`) — filtering, log transform, train-only scaling
-5. **Dataset assembly** (`05_assemble_dataset.ipynb`) — align modalities, construct targets, validate
-6. **Baseline models** (`06_train_baselines.ipynb`) — clinical-only and RNA-only logistic regression
-7. **XGBoost benchmark** (`07_train_xgboost.ipynb`) — nonlinear multimodal benchmark with SHAP
-8. **Deep learning** (planned) — MLP encoders, concat fusion, attention fusion
-
-### Ablation design
-
-Each model in the results table changes one thing:
-
-- **Clinical LR → RNA LR**: modality value
-- **RNA LR → XGBoost (concat)**: nonlinearity + naive fusion
-- **XGBoost → Deep concat MLP**: deep representations
-- **Deep concat → Attention fusion**: learned modality weighting
-
-The goal is to isolate whether attention meaningfully improves over naive concatenation.
-
----
-
-## Directory Structure
+## Project Structure
 
 ```
 data/
@@ -113,16 +91,30 @@ data/
 └── tests/                      # Ephemeral outputs from notebook dev/smoke tests
 
 models/
-└── baselines/                  # Fitted model artifacts, predictions, and metrics
+├── baselines/                  # Logistic regression artifacts, predictions, and metrics
+├── xgboost/                    # XGBoost artifacts, predictions, SHAP values, and metrics
+└── multimodal/                 # Concat MLP and attention fusion artifacts, predictions, and metrics
 
-notebooks/                      # Step-by-step development notebooks (01–07)
+notebooks/                      # Step-by-step development notebooks (01–09)
 scripts/                        # Reusable pipeline modules (CLI entry points)
 reports/                        # Figures and analysis outputs
 ```
 
+Each notebook has a corresponding script in `scripts/` — the notebook is the development and guide artifact, the script is the reproducible CLI entry point.
+
+1. **Data preparation** (`01_data_prep.ipynb`) — cohort definition, QC, modality alignment
+2. **Split creation** (`02_create_split.ipynb`) — stratified train/val/test split, leakage safeguards
+3. **Clinical preprocessing** (`03_preprocess_clinical.ipynb`) — imputation, encoding, leakage checks; all parameters fit on train only
+4. **RNA preprocessing** (`04_preprocess_rna.ipynb`) — filtering, log transform, train-only scaling
+5. **Dataset assembly** (`05_assemble_dataset.ipynb`) — align modalities, construct targets, validate
+6. **Baseline models** (`06_train_baselines.ipynb`) — clinical-only and RNA-only logistic regression
+7. **XGBoost benchmark** (`07_train_xgboost.ipynb`) — nonlinear multimodal benchmark with SHAP
+8. **Deep learning** (`08_train_multimodal.ipynb`) — MLP encoders, concatenation fusion, attention fusion
+9. **Analysis and model selection** (`09_analysis_and_model_selection.ipynb`) — cross-model comparison, Kaplan–Meier survival curves, SHAP interpretability, final recommendation
+
 ---
 
-## Design Notes
+## Design Decisions
 
 ### Why BRCA
 - Decent cohort size (~1,200 patients before filtering)
@@ -144,110 +136,25 @@ TCGA log2(count + 1) values are not library-size normalized, so sequencing depth
 
 What would be fully optimal (if reprocessing from raw): start from raw counts, normalize with DESeq2/TMM size factors, apply VST, split before any statistical filtering, fit all scaling on train only.
 
+### Deep Learning Hyperparameter Tuning
+Hyperparameter tuning was applied to XGBoost but not the deep learning models. With n=203 training samples, the primary constraint is sample size — not architecture or regularization choices. A grid search over dropout rates, learning rates, or embedding dimensions would not address the fundamental parameter-to-sample ratio problem, and would be prohibitively slow to run on a local machine. The deep learning models are included as architectural demonstrations of multimodal fusion, not as optimized production models.
+
+### Model Comparison Design
+
+Each model in the results table represents a step up in complexity:
+
+- **Clinical LR**: interpretable baseline using well-established clinical risk factors
+- **RNA LR**: tests whether gene expression adds signal beyond clinical features
+- **XGBoost (concat)**: nonlinear model on combined modalities
+- **Deep concat MLP**: learned representations via neural encoders
+- **Attention fusion**: per-patient modality weighting via learned attention
+
+This is a model comparison rather than a strict ablation. Each step changes multiple things at once (architecture, training procedure, feature set), so individual contributions cannot be cleanly isolated. The progression is designed to answer a practical question: at what point does added complexity stop paying off?
+
 ### Leakage Controls
 - Train/val/test split is created once and saved; all preprocessing parameters are fit on the train partition only.
 - Clinical imputation medians, OHE categories, and RNA scaling parameters are derived from training data and applied unchanged to val and test.
 - Target leakage columns (`vital_status`, `treatment_or_therapy`) are explicitly dropped before any feature encoding.
 - Formal leakage check in `03_preprocess_clinical.ipynb` correlates candidate features with the outcome label before finalizing the feature set.
 
----
 
-## Roadmap
-
-### 1. Problem Definition
-
-- Select one TCGA cancer type (e.g., LUAD or BRCA).
-- Define binary label: survived ≥ 5 years (1825 days) vs not.
-- Exclude samples with insufficient follow-up.
-- Clearly document censoring assumptions.
-- Frame as a risk stratification problem (not just classification).
-
-Primary metrics:
-- ROC-AUC
-- Average Precision (AP)
-- Calibration (Brier score + reliability curve)
-- Performance at fixed high-risk threshold (e.g., top 20%)
-
-### 2. Data Assembly & Leakage Control
-
-Modalities:
-- RNA-seq gene expression (normalized)
-- Clinical variables (age, stage, sex, etc.)
-
-Steps:
-- Align samples across modalities.
-- Remove duplicates.
-- Handle missing clinical data (imputation strategy documented).
-- Standardize gene expression (fit on train only).
-- Single train / validation / test split: stratified by outcome, all preprocessing fit only on training set.
-
-Explicitly verify:
-- No data leakage from test into training.
-- No leakage via normalization or feature filtering.
-
-### 3. Baseline Models (Performance Floor)
-
-1. Clinical-only logistic regression.
-2. RNA-only logistic regression (L2 regularization).
-
-Evaluate on validation and test: ROC-AUC, AP, calibration curves, risk-tier separation.
-
-Purpose:
-- Establish interpretable baseline.
-- Quantify incremental value of RNA.
-
-### 4. Strong Tabular Model (Nonlinear Benchmark)
-
-Model: XGBoost on concatenated RNA + clinical features.
-
-Include:
-- Cross-validation on training set.
-- Hyperparameter tuning.
-- Early stopping.
-- Save best parameters.
-
-Evaluate: ROC-AUC, AP, calibration, top-20% risk capture, confusion-style summary at threshold.
-
-Purpose:
-- Measure nonlinear gains over logistic regression.
-- Provide SHAP-based interpretability baseline.
-
-### 5. Multimodal Deep Learning
-
-**Encoders**
-- RNA → MLP encoder → embedding
-- Clinical → MLP encoder → embedding
-
-**Fusion Strategies (Ablation Study)**
-1. Concatenation + MLP (no attention)
-2. Attention / modality-gating fusion: learn per-patient weight between RNA and clinical embeddings.
-
-Train end-to-end for 5-year survival classification.
-
-### 6. Analysis and Model Selection
-
-Compare all models (Clinical LR, RNA LR, XGBoost, Concat MLP, Attention fusion) on ROC-AUC, AP, and top-20% high-risk capture.
-
-Risk stratification on test set: Kaplan–Meier survival curves and log-rank test to show decision-oriented utility beyond AUC.
-
-Interpretability: SHAP feature importance for XGBoost; learned modality weight distribution for the attention model.
-
-Select final model based on discrimination, high-risk capture, interpretability, and deployment simplicity.
-
----
-
-## Deliverables
-
-- Data preprocessing notebook (reproducible pipeline).
-- Training script (modular, configurable).
-- Evaluation notebook/report.
-- Clean results table.
-- Clear README including problem framing, leakage safeguards, model comparison, limitations, and future extensions (e.g., Cox model, additional modalities).
-
-## What This Demonstrates
-
-- Multimodal modeling capability.
-- Practical attention-based fusion.
-- Strong ML fundamentals (baselines, CV, calibration).
-- Decision-driven evaluation.
-- Biotech-relevant applied machine learning expertise.

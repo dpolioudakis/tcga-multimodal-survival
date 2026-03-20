@@ -262,6 +262,11 @@ def main() -> None:
         lr_clin, lr_rna, X_clin_test_scaled, X_rna_test_scaled, y_test, split="test"
     )
 
+    # Majority class baseline: predicts training positive rate for all patients
+    majority_prob = float(y_train.mean())
+    y_val_pred_majority  = np.full(len(y_val),  majority_prob)
+    y_test_pred_majority = np.full(len(y_test), majority_prob)
+
     # Save model artifacts
     with open(outdir / "clinical_model.pkl", "wb") as f:
         pickle.dump(lr_clin, f)
@@ -276,6 +281,7 @@ def main() -> None:
         "y_true": y_val.values,
         "y_pred_clin": y_val_pred_clin,
         "y_pred_rna": y_val_pred_rna,
+        "y_pred_majority": y_val_pred_majority,
     }).to_parquet(outdir / "predictions_val.parquet", index=False)
 
     pd.DataFrame({
@@ -283,6 +289,7 @@ def main() -> None:
         "y_true": y_test.values,
         "y_pred_clin": y_test_pred_clin,
         "y_pred_rna": y_test_pred_rna,
+        "y_pred_majority": y_test_pred_majority,
     }).to_parquet(outdir / "predictions_test.parquet", index=False)
 
     # Save metrics

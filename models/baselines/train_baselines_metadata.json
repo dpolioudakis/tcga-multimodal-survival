@@ -1,6 +1,6 @@
 {
   "script_name": "train_baselines.py",
-  "timestamp": "2026-03-18T01:09:25.172910+00:00",
+  "timestamp": "2026-03-20T00:33:27.766810+00:00",
   "cli_command": "../scripts/train_baselines.py --assembled-dir ../data/processed/assembled --outdir ../models/baselines --random-state 42",
   "input_files": {
     "assembled_dir": "/Users/damon/Documents/applied_ml_playbooks/tcga-multimodal-survival/data/processed/assembled"
@@ -13,7 +13,7 @@
     "Cs": 10,
     "solver": "lbfgs",
     "clinical_best_c": 0.005994842503189409,
-    "rna_best_c": 2.782559402207126
+    "rna_best_c": 0.046415888336127774
   },
   "dataset_statistics": {
     "n_samples_train": 203,
@@ -25,7 +25,7 @@
     "n_clin_features": 98,
     "n_rna_features": 25431,
     "clinical_cv_auc": 0.8551,
-    "rna_cv_auc": 0.6836
+    "rna_cv_auc": 0.6828
   },
   "output_files": {
     "clinical_model": "../models/baselines/clinical_model.pkl",

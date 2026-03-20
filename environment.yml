@@ -1,5 +1,6 @@
 name: tcga-multimodal-survival
 channels:
+  - conda-forge
   - defaults
 dependencies:
   - python=3.10
@@ -12,4 +13,9 @@ dependencies:
   - xgboost
   - jupyterlab
   - pyarrow
+  - requests
+  - shap
+  - pip
+  - pip:
+    - torch==2.2.2
 prefix: /Users/damon/miniconda3/envs/tcga-multimodal-survival
