@@ -1,13 +1,13 @@
 # Multimodal Breast Cancer Survival Prediction: A Six-Model Comparison
 
-- 5-year survival prediction in TCGA breast cancer (n=301) using clinical features and RNA-seq
+- 5-year survival prediction in TCGA breast cancer (n=290) using clinical features and RNA-seq
 - Compares logistic regression, XGBoost, and attention-based deep learning fusion
 - Evaluates when added model complexity improves predictive performance at small sample sizes
 - Reproducible Makefile pipeline with train-only preprocessing and formal leakage checks
 
 ---
 
-**Endpoint:** 5-year overall survival (binary: death within 5 years vs. alive with ≥5 years follow-up). Censored patients (alive with <5 years follow-up) are excluded to minimize label ambiguity, yielding n=301 after filtering (~33% event rate).
+**Endpoint:** 5-year overall survival (binary: death within 5 years vs. alive with ≥5 years follow-up). Censored patients (alive with <5 years follow-up) are excluded to minimize label ambiguity, yielding n=290 after filtering (~33% event rate).
 
 **Challenge:** High-dimensional RNA features relative to a small effective cohort (n=203 training samples). This is a regime where deep learning is not expected to dominate simpler models.
 
@@ -146,7 +146,7 @@ Each notebook has a corresponding script in `scripts/`. The notebook is the deve
 - **Survivor (label = 0):** alive with ≥ 5 years of follow-up
 - **Excluded:** alive with < 5 years follow-up (censored before cutoff)
 
-Rationale: minimizes label ambiguity from censoring, provides a clinically meaningful endpoint, maintains adequate event rate (~33%), and preserves sufficient cohort size (n ≈ 301).
+Rationale: minimizes label ambiguity from censoring, provides a clinically meaningful endpoint, maintains adequate event rate (~33%), and preserves sufficient cohort size (n=290).
 
 ### Why TPM for RNA
 TCGA log2(count + 1) values are not library-size normalized, so sequencing depth differences remain. TPM is library-size normalized, reducing global shifts across patients. After log transformation and train-only z-scoring, TPM provides a stable input for ML models.
